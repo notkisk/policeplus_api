@@ -71,7 +71,7 @@ app.post('/register', async (req, res) => {
 
         console.log("📤 Inserting user into DB...");
         const [insertResult] = await db.promise().query(
-            'INSERT INTO users (email, password, name, rank, department, badge_number) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (email, password, name, `rank`, department, badge_number) VALUES (?, ?, ?, ?, ?, ?)',
             [email, hashedPassword, name, rank, department, badge_number]
         );
 
