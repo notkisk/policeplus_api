@@ -36,7 +36,7 @@ app.get('/api/insurance/:plate', (req, res) => {
 });
 
 // Start Server
-const PORT = 5002;
+const PORT = 5003;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Insurance API running on port ${PORT}`);
 });
