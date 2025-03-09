@@ -44,34 +44,47 @@ const authenticateToken = (req, res, next) => {
 app.post('/register', async (req, res) => {
     const { email, password, name, rank, department, badge_number } = req.body;
 
+    console.log("📥 Incoming registration data:", req.body);
+
     if (!email || !password || !name || !badge_number) {
+        console.log("❌ Missing required fields");
         return res.status(400).json({ error: "All required fields must be filled" });
     }
 
     try {
+        console.log("🔍 Checking if user already exists...");
         const [existingUser] = await db.promise().query(
             'SELECT * FROM users WHERE email = ? OR badge_number = ?', 
             [email, badge_number]
         );
 
+        console.log("✅ User existence check complete");
+
         if (existingUser.length > 0) {
+            console.log("⚠️ Email or Badge Number already exists");
             return res.status(400).json({ error: "Email or Badge Number already exists" });
         }
 
+        console.log("🔐 Hashing password...");
         const hashedPassword = await bcrypt.hash(password, saltRounds);
+        console.log("✅ Password hashed");
 
-        await db.promise().query(
+        console.log("📤 Inserting user into DB...");
+        const [insertResult] = await db.promise().query(
             'INSERT INTO users (email, password, name, rank, department, badge_number) VALUES (?, ?, ?, ?, ?, ?)',
             [email, hashedPassword, name, rank, department, badge_number]
         );
 
+        console.log("✅ Insert success:", insertResult);
+
         res.status(201).json({ message: "User registered successfully" });
 
     } catch (error) {
-        console.error("Error registering user:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("❌ Error registering user:", error.message);
+        res.status(500).json({ error: error.message || "Internal Server Error" });
     }
 });
+
 
 // 🔐 Login
 app.post('/login', async (req, res) => {
