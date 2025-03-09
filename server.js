@@ -124,7 +124,7 @@ app.get('/cars/:plate', authenticateToken, async (req, res) => {
             return res.status(404).json({ message: "Car not found" });
         }
 
-        const insuranceResponse = await axios.get(`http://localhost:5003/api/insurance/${plate}`);
+        const insuranceResponse = await axios.get(`${process.env.INSURANCE_API_BASE_URL}/api/insurance/${plate}`);
 
         const carData = { 
             ...carResults[0], 
