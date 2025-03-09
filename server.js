@@ -13,20 +13,20 @@ app.use(express.json());
 const saltRounds = 10;
 const SECRET_KEY = process.env.JWT_SECRET || "your_secret_key";
 
-// MySQL Connection
-const db = mysql.createConnection({
-    host: process.env.DB_HOST, 
+// ✅ FIX: Use MySQL Pool instead of single connection
+const db = mysql.createPool({
+    host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-db.connect(err => {
-    if (err) console.error('Database connection failed:', err);
-    else console.log('Connected to MySQL (Cars DB)');
-});
+// ✅ You can remove db.connect() entirely — pools connect automatically
 
-// 🟢 Middleware for JWT Authentication
+// 🛡 JWT Middleware
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(" ")[1];
@@ -40,7 +40,7 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// 🟢 REGISTER - Create a new user with a hashed password
+// 🔐 Register
 app.post('/register', async (req, res) => {
     const { email, password, name, rank, department, badge_number } = req.body;
 
@@ -73,7 +73,7 @@ app.post('/register', async (req, res) => {
     }
 });
 
-// 🔵 LOGIN - Authenticate user and return JWT token
+// 🔐 Login
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -110,9 +110,10 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// 🟢 PROTECTED ROUTE: Fetch Car Details (Requires Authentication)
+// 🚓 Car Details (Protected Route)
 app.get('/cars/:plate', authenticateToken, async (req, res) => {
     const plate = req.params.plate;
+    console.log("🔍 Looking up car:", plate);
 
     try {
         const [carResults] = await db.promise().query(
@@ -121,26 +122,34 @@ app.get('/cars/:plate', authenticateToken, async (req, res) => {
         );
 
         if (carResults.length === 0) {
+            console.log("🚫 Car not found in DB");
             return res.status(404).json({ message: "Car not found" });
         }
 
-        const insuranceResponse = await axios.get(`${process.env.INSURANCE_API_BASE_URL}/api/insurance/${plate}`);
+        console.log("✅ Car data from DB:", carResults[0]);
+
+        const insuranceUrl = `${process.env.INSURANCE_API_BASE_URL}/api/insurance/${plate}`;
+        console.log("📡 Fetching insurance data from:", insuranceUrl);
+
+        const insuranceResponse = await axios.get(insuranceUrl);
+
+        console.log("✅ Insurance data:", insuranceResponse.data);
 
         const carData = { 
             ...carResults[0], 
             insurance_start: insuranceResponse.data.insurance_start,
             insurance_end: insuranceResponse.data.insurance_end
         };
-                  
+
         res.json(carData);
 
     } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("❌ Error fetching data:", error.message);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
-// Start Server
+// Start server
 const PORT = 5004;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
