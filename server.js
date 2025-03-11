@@ -52,22 +52,33 @@ app.post('/register', async (req, res) => {
     }
 
     try {
+        // ✅ Check if badge_number + name exists in officers table
+        console.log("🔍 Validating officer in officers table...");
+        const [officerMatch] = await db.promise().query(
+            'SELECT * FROM officers WHERE badge_number = ? AND name = ?',
+            [badge_number, name]
+        );
+
+        if (officerMatch.length === 0) {
+            console.log("❌ Officer not found in officers table");
+            return res.status(403).json({ error: "Badge number and name do not match any authorized officer" });
+        }
+
+        // ✅ Check if email or badge already registered in users table
         console.log("🔍 Checking if user already exists...");
         const [existingUser] = await db.promise().query(
-            'SELECT * FROM users WHERE email = ? OR badge_number = ?', 
+            'SELECT * FROM users WHERE email = ? OR badge_number = ?',
             [email, badge_number]
         );
 
-        console.log("✅ User existence check complete");
-
         if (existingUser.length > 0) {
-            console.log("⚠️ Email or Badge Number already exists");
+            console.log("⚠️ Email or Badge Number already exists in users");
             return res.status(400).json({ error: "Email or Badge Number already exists" });
         }
 
+        // ✅ Hash password and insert into users
         console.log("🔐 Hashing password...");
         const hashedPassword = await bcrypt.hash(password, saltRounds);
-        console.log("✅ Password hashed");
 
         console.log("📤 Inserting user into DB...");
         const [insertResult] = await db.promise().query(
@@ -76,7 +87,6 @@ app.post('/register', async (req, res) => {
         );
 
         console.log("✅ Insert success:", insertResult);
-
         res.status(201).json({ message: "User registered successfully" });
 
     } catch (error) {
@@ -84,6 +94,7 @@ app.post('/register', async (req, res) => {
         res.status(500).json({ error: error.message || "Internal Server Error" });
     }
 });
+
 
 
 // 🔐 Login
