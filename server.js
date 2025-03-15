@@ -173,6 +173,27 @@ app.get('/cars/:plate', authenticateToken, async (req, res) => {
     }
 });
 
+app.post('/ticket',authenticateToken, async (req, res) => {
+const ticketData = req.body;
+
+try{
+
+    console.log("📤 Inserting ticket into DB...");
+    const [insertResult] = await db.promise().query(
+        'INSERT INTO tickets (driver_license, ticket_type, ticket_details,issued_by_name,issued_by_badge) VALUES (?, ?, ?, ?, ?)',
+        [ticketData.driver_license, ticketData.ticket_type, ticketData.details, ticketData.officer_name, ticketData.officer_badge]
+    );
+
+    console.log("✅ Insert success:", insertResult);
+    res.status(201).json({ message: "Ticket created successfully" });
+
+} catch (error) {
+    console.error("❌ Error submitting ticket:", error.message);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
+}
+
+});
+
 // Start server
 const PORT = 5004;
 app.listen(PORT, '0.0.0.0', () => {
