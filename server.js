@@ -151,6 +151,12 @@ app.get('/cars/:plate', authenticateToken, async (req, res) => {
         }
 
         console.log("✅ Car data from DB:", carResults[0]);
+        const [tickets] = await db.promise().query('SELECT * FROM tickets WHERE driver_license = ?', [carResults[0].driver_license]);
+        if(tickets.length === 0){
+            console.log("🚫 No tickets found in DB");
+            //return res.status(404).json({ message: "No tickets found" });
+        }
+        console.log("✅ Tickets data from DB:", tickets);
 
         const insuranceUrl = `${process.env.INSURANCE_API_BASE_URL}/api/insurance/${plate}`;
         console.log("📡 Fetching insurance data from:", insuranceUrl);
@@ -162,7 +168,8 @@ app.get('/cars/:plate', authenticateToken, async (req, res) => {
         const carData = { 
             ...carResults[0], 
             insurance_start: insuranceResponse.data.insurance_start,
-            insurance_end: insuranceResponse.data.insurance_end
+            insurance_end: insuranceResponse.data.insurance_end,
+            tickets: tickets
         };
 
         res.json(carData);
