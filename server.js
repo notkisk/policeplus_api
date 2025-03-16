@@ -194,6 +194,31 @@ try{
 
 });
 
+app.post('/stolen_car/:plate/:stolen_car', authenticateToken, async (req, res) => {
+    const plate = req.params.plate;
+    const stolen_car = req.params.stolen_car;
+
+    try {
+        const [result] = await db.promise().query(
+            'UPDATE cars SET stolen_car = ? WHERE license_plate = ?',
+            [stolen_car, plate]
+        );
+
+        if (result.affectedRows === 0) {
+            console.log("🚫 Car not found in DB");
+            return res.status(404).json({ error: "Car not found" });
+        }
+
+        console.log("✅ Car updated successfully");
+        return res.status(200).json({ message: "Car stolen status updated" });
+
+    } catch (error) {
+        console.error("❌ Error updating data:", error.message);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
 // Start server
 const PORT = 5004;
 app.listen(PORT, '0.0.0.0', () => {
