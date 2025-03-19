@@ -92,13 +92,13 @@ app.post('/register', async (req, res) => {
 
 
 app.post('/register/normal', async (req, res) => {
-    const { email, password, name, carLicensePlate } = req.body;
+    const { email, password, name, license_number  } = req.body;
 
     console.log("📥 Incoming registration data:", req.body);
 
-    if (!email || !password || !name || !carLicensePlate) {
+    if (!email || !password || !name || !license_number ) {
         console.log("❌ Missing required fields");
-        return res.status(400).json({ error: "All fields are required: email, password, name, carLicensePlate" });
+        return res.status(400).json({ error: "All fields are required: email, password, name, license_number " });
     }
 
     try {
@@ -119,7 +119,7 @@ app.post('/register/normal', async (req, res) => {
         console.log("📤 Inserting user into database...");
         const [insertResult] = await db.promise().query(
             'INSERT INTO users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
-            [email, hashedPassword, name, carLicensePlate]
+            [email, hashedPassword, name, license_number ]
         );
 
         console.log("✅ Registration successful:", insertResult);
