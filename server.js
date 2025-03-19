@@ -92,13 +92,13 @@ app.post('/register', async (req, res) => {
 
 
 app.post('/register/normal', async (req, res) => {
-    const { email, password, name, license_number } = req.body;
+    const { email, password, name, carLicensePlate } = req.body;
 
     console.log("📥 Incoming registration data:", req.body);
 
-    if (!email || !password || !name || !license_number) {
+    if (!email || !password || !name || !carLicensePlate) {
         console.log("❌ Missing required fields");
-        return res.status(400).json({ error: "All fields are required: email, password, name, license_number" });
+        return res.status(400).json({ error: "All fields are required: email, password, name, carLicensePlate" });
     }
 
     try {
@@ -119,7 +119,7 @@ app.post('/register/normal', async (req, res) => {
         console.log("📤 Inserting user into database...");
         const [insertResult] = await db.promise().query(
             'INSERT INTO users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
-            [email, hashedPassword, name, license_number]
+            [email, hashedPassword, name, carLicensePlate]
         );
 
         console.log("✅ Registration successful:", insertResult);
@@ -158,6 +158,45 @@ app.post('/login', async (req, res) => {
 
         const token = jwt.sign(
             { id: user[0].id, email: user[0].email, name: user[0].name, rank: user[0].rank }, 
+            SECRET_KEY, 
+            { expiresIn: "168h" }
+        );
+
+        res.json({ message: "Login successful", token, user: user[0] });
+
+    } catch (error) {
+        console.error("Error logging in:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
+
+// 🔐 Login
+app.post('/login/normal', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    try {
+        const [user] = await db.promise().query(
+            'SELECT * FROM normal_users WHERE email = ?', 
+            [email]
+        );
+
+        if (user.length === 0) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const validPassword = await bcrypt.compare(password, user[0].password);
+        if (!validPassword) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const token = jwt.sign(
+            { id: user[0].id, email: user[0].email, name: user[0].name, license_number: user[0].license_number }, 
             SECRET_KEY, 
             { expiresIn: "168h" }
         );
