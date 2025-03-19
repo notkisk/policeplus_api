@@ -109,8 +109,8 @@ app.post('/register/normal', async (req, res) => {
         );
 
         const [existingUserPolice] = await db.promise().query(
-            'SELECT * FROM users WHERE email = ? OR badge_number = ?',
-            [email, badge_number]
+            'SELECT * FROM users WHERE email = ?',
+            [email]
         );
 
         if (existingUser.length > 0||existingUserPolice.length>0) {
