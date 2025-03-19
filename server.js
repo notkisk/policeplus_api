@@ -104,7 +104,7 @@ app.post('/register/normal', async (req, res) => {
     try {
         console.log("🔍 Checking if user already exists...");
         const [existingUser] = await db.promise().query(
-            'SELECT * FROM users WHERE email = ? OR license_number = ?',
+            'SELECT * FROM normal_users WHERE email = ? OR license_number = ?',
             [email, license_number]
         );
 
@@ -118,7 +118,7 @@ app.post('/register/normal', async (req, res) => {
 
         console.log("📤 Inserting user into database...");
         const [insertResult] = await db.promise().query(
-            'INSERT INTO users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
+            'INSERT INTO normal_users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
             [email, hashedPassword, name, license_number ]
         );
 
