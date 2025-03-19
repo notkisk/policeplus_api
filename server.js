@@ -13,7 +13,6 @@ app.use(express.json());
 const saltRounds = 10;
 const SECRET_KEY = process.env.JWT_SECRET || "your_secret_key";
 
-// ✅ FIX: Use MySQL Pool instead of single connection
 const db = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -24,9 +23,8 @@ const db = mysql.createPool({
     queueLimit: 0
 });
 
-// ✅ You can remove db.connect() entirely — pools connect automatically
 
-// 🛡 JWT Middleware
+//  JWT Middleware
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(" ")[1];
@@ -52,7 +50,6 @@ app.post('/register', async (req, res) => {
     }
 
     try {
-        // ✅ Check if badge_number + name exists in officers table
         console.log("🔍 Validating officer in officers table...");
         const [officerMatch] = await db.promise().query(
             'SELECT * FROM officers WHERE badge_number = ? AND name = ?',
@@ -64,7 +61,6 @@ app.post('/register', async (req, res) => {
             return res.status(403).json({ error: "Badge number and name do not match any authorized officer" });
         }
 
-        // ✅ Check if email or badge already registered in users table
         console.log("🔍 Checking if user already exists...");
         const [existingUser] = await db.promise().query(
             'SELECT * FROM users WHERE email = ? OR badge_number = ?',
@@ -76,7 +72,6 @@ app.post('/register', async (req, res) => {
             return res.status(400).json({ error: "Email or Badge Number already exists" });
         }
 
-        // ✅ Hash password and insert into users
         console.log("🔐 Hashing password...");
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -92,6 +87,47 @@ app.post('/register', async (req, res) => {
     } catch (error) {
         console.error("❌ Error registering user:", error.message);
         res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+});
+
+
+app.post('/register/normal', async (req, res) => {
+    const { email, password, name, license_number } = req.body;
+
+    console.log("📥 Incoming registration data:", req.body);
+
+    if (!email || !password || !name || !license_number) {
+        console.log("❌ Missing required fields");
+        return res.status(400).json({ error: "All fields are required: email, password, name, license_number" });
+    }
+
+    try {
+        console.log("🔍 Checking if user already exists...");
+        const [existingUser] = await db.promise().query(
+            'SELECT * FROM users WHERE email = ? OR license_number = ?',
+            [email, license_number]
+        );
+
+        if (existingUser.length > 0) {
+            console.log("⚠️ Email or License Number already registered");
+            return res.status(409).json({ error: "Email or License Number already in use" });
+        }
+
+        console.log("🔐 Hashing password...");
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        console.log("📤 Inserting user into database...");
+        const [insertResult] = await db.promise().query(
+            'INSERT INTO users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
+            [email, hashedPassword, name, license_number]
+        );
+
+        console.log("✅ Registration successful:", insertResult);
+        res.status(201).json({ message: "User registered successfully" });
+
+    } catch (error) {
+        console.error("❌ Error during registration:", error.message);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
