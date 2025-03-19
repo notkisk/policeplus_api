@@ -108,7 +108,12 @@ app.post('/register/normal', async (req, res) => {
             [email, license_number]
         );
 
-        if (existingUser.length > 0) {
+        const [existingUserPolice] = await db.promise().query(
+            'SELECT * FROM users WHERE email = ? OR badge_number = ?',
+            [email, badge_number]
+        );
+
+        if (existingUser.length > 0||existingUserPolice.length>0) {
             console.log("⚠️ Email or License Number already registered");
             return res.status(409).json({ error: "Email or License Number already in use" });
         }
@@ -142,27 +147,56 @@ app.post('/login', async (req, res) => {
     }
 
     try {
-        const [user] = await db.promise().query(
-            'SELECT * FROM users WHERE email = ?', 
-            [email]
+        const [policeUserResult] = await db.promise().query(
+            'SELECT * FROM users WHERE email = ?', [email]
         );
 
-        if (user.length === 0) {
+        const [normalUserResult] = await db.promise().query(
+            'SELECT * FROM normal_users WHERE email = ?', [email]
+        );
+
+        let user = null;
+        let userType = null;
+
+        // Determine which table the user exists in
+        if (policeUserResult.length > 0 && normalUserResult.length === 0) {
+            user = policeUserResult[0];
+            userType = 'police';
+        } else if (normalUserResult.length > 0 && policeUserResult.length === 0) {
+            user = normalUserResult[0];
+            userType = 'normal';
+        } else {
             return res.status(401).json({ error: "Invalid email or password" });
         }
 
-        const validPassword = await bcrypt.compare(password, user[0].password);
+        // Validate password
+        const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
             return res.status(401).json({ error: "Invalid email or password" });
         }
 
-        const token = jwt.sign(
-            { id: user[0].id, email: user[0].email, name: user[0].name, rank: user[0].rank }, 
-            SECRET_KEY, 
-            { expiresIn: "168h" }
-        );
+        // Create a token (you can add userType into token if needed)
+        const tokenPayload = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            userType: userType
+        };
 
-        res.json({ message: "Login successful", token, user: user[0] });
+        // Add police-specific fields if available
+        if (userType === 'police') {
+            tokenPayload.rank = user.rank;
+            tokenPayload.department = user.department;
+            tokenPayload.badgeNumber = user.badge_number;
+        }
+
+        const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: "168h" });
+
+        res.json({
+            message: "Login successful",
+            token,
+            user: { ...user, userType }
+        });
 
     } catch (error) {
         console.error("Error logging in:", error);
@@ -173,7 +207,7 @@ app.post('/login', async (req, res) => {
 
 
 // 🔐 Login
-app.post('/login/normal', async (req, res) => {
+/*app.post('/login/normal', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -208,6 +242,7 @@ app.post('/login/normal', async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+*/
 
 // 🚓 Car Details (Protected Route)
 app.get('/cars/:plate', authenticateToken, async (req, res) => {
