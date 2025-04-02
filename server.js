@@ -122,10 +122,19 @@ app.post('/register/normal', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
         console.log("📤 Inserting user into database...");
-        const [insertResult] = await db.promise().query(
-            'INSERT INTO normal_users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
-            [email, hashedPassword, name, license_number ]
-        );
+        const[licensePlate] = await db.promise().query(
+            'SELECT * FROM license_plates WHERE license_number = ?',
+            [license_number]
+        )
+        if(licensePlate.length === 0){
+            const [insertResult] = await db.promise().query(
+                'INSERT INTO normal_users (email, password, name, license_number) VALUES (?, ?, ?, ?)',
+                [email, hashedPassword, name, license_number ]
+            );
+        }else{
+            res.status(409).json({ error: "License Number already in use" });
+        }
+    
 
         console.log("✅ Registration successful:", insertResult);
         res.status(201).json({ message: "User registered successfully" });
@@ -191,7 +200,14 @@ app.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: "168h" });
-
+        if(userType === 'normal'){
+            try{
+                res.append("X-Driver-License", user.driver_license);
+            }catch(error){
+                console.error("❌ Error appending header:", error.message);
+                res.status(500).json({ error: "Internal Server Error" });
+            }
+        }
         res.json({
             message: "Login successful",
             token,
