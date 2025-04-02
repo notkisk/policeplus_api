@@ -201,6 +201,7 @@ app.post('/login', async (req, res) => {
 
         const token = jwt.sign(tokenPayload, SECRET_KEY, { expiresIn: "168h" });
         if(userType === 'normal'){
+            console.log(user.driver_license);
             try{
                 res.append("X-Driver-License", user.driver_license);
             }catch(error){
